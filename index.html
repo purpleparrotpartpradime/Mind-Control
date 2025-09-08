@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Grand Hypno Generator</title>
+<title>Grand Hypno Generator — Ultimate Visuals</title>
 <style>
 :root{
   --bg:#070707;
@@ -40,7 +40,7 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
 </head>
 <body>
 <div class="wrap">
-<h1>Grand Hypno Generator — Ethical Mode</h1>
+<h1>Grand Hypno Generator — Ultimate Visuals</h1>
 
 <div class="controls">
   <div>
@@ -57,11 +57,24 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
   <div>
     <label for="pattern">Entraining Pattern</label>
     <select id="pattern">
-      <option value="softBlobs">Soft blobs</option>
-      <option value="spiral">Slow Spiral</option>
-      <option value="figure8">Figure-eight Flow</option>
+      <option value="softBlobs">Soft Blobs</option>
+      <option value="spiral">Spiral</option>
+      <option value="figure8">Figure-8</option>
       <option value="pulse">Breathing Pulse</option>
       <option value="warmOrbs">Warm Orbitals</option>
+      <!-- Mood-specific extra visual modes -->
+      <option value="deepFlow">DeepFlow (Calm)</option>
+      <option value="waveRipples">WaveRipples (Calm)</option>
+      <option value="figure8Spiral">Figure8 Spiral (Focus)</option>
+      <option value="concentricLines">Concentric Lines (Focus)</option>
+      <option value="orbitOrbs">Orbiting Orbs (Hungry)</option>
+      <option value="warmGlowDots">Warm Glow Dots (Hungry)</option>
+      <option value="starBurst">StarBurst (Energetic)</option>
+      <option value="flickerDots">Flicker Dots (Energetic)</option>
+      <option value="floatingTriangles">Floating Triangles (Dreamy)</option>
+      <option value="translucentWaves">Translucent Waves (Dreamy)</option>
+      <option value="jitterPolygons">Jitter Polygons (Anxious)</option>
+      <option value="shakyLines">Shaky Lines (Anxious)</option>
     </select>
   </div>
   <div>
@@ -119,7 +132,7 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
   <input id="consentBox" type="checkbox"/>
   <div>
     <div style="font-size:13px;color:var(--muted);">I confirm I have informed consent from participants for visual/audio entrainment and they are aware of potential effects (dizziness, nausea, headache, photosensitivity).</div>
-    <div class="muted-note">To enable procedural audio or 'strong entrainment' patterns you must check this box. Recording with audio is disabled until consent is given.</div>
+    <div class="muted-note">To enable procedural audio or strong entrainment patterns you must check this box. Recording with audio is disabled until consent is given.</div>
   </div>
 </div>
 
@@ -148,178 +161,181 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
 /* ------------------------------
 Core DOM & state
 ------------------------------ */
-const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d', { alpha:false });
-let width = canvas.width, height = canvas.height;
+const canvas=document.getElementById('stage');
+const ctx=canvas.getContext('2d',{alpha:false});
+let width=canvas.width,height=canvas.height;
+const moodSelect=document.getElementById('mood');
+const patternSelect=document.getElementById('pattern');
+const startPreviewBtn=document.getElementById('startPreviewBtn');
+const stopPreviewBtn=document.getElementById('stopPreviewBtn');
+const recordBtn=document.getElementById('recordBtn');
+const stopRecordBtn=document.getElementById('stopRecordBtn');
+const downloadLink=document.getElementById('downloadLink');
+const durationInput=document.getElementById('duration');
+const resolutionInput=document.getElementById('resolution');
+const fpsInput=document.getElementById('fps');
+const densityInput=document.getElementById('density');
+const complexityInput=document.getElementById('complexity');
+const satInput=document.getElementById('sat');
+const progressFill=document.getElementById('progressFill');
+const statusLabel=document.getElementById('statusLabel');
+const consentBox=document.getElementById('consentBox');
+const enableAudio=document.getElementById('enableAudio');
+const audioMode=document.getElementById('audioMode');
+const dummyVideo=document.getElementById('dummyVideo');
 
-const moodSelect = document.getElementById('mood');
-const patternSelect = document.getElementById('pattern');
-const startPreviewBtn = document.getElementById('startPreviewBtn');
-const stopPreviewBtn = document.getElementById('stopPreviewBtn');
-const recordBtn = document.getElementById('recordBtn');
-const stopRecordBtn = document.getElementById('stopRecordBtn');
-const downloadLink = document.getElementById('downloadLink');
-const durationInput = document.getElementById('duration');
-const resolutionInput = document.getElementById('resolution');
-const fpsInput = document.getElementById('fps');
-const densityInput = document.getElementById('density');
-const complexityInput = document.getElementById('complexity');
-const satInput = document.getElementById('sat');
-const progressFill = document.getElementById('progressFill');
-const statusLabel = document.getElementById('statusLabel');
-const consentBox = document.getElementById('consentBox');
-const enableAudio = document.getElementById('enableAudio');
-const audioMode = document.getElementById('audioMode');
-const dummyVideo = document.getElementById('dummyVideo');
-
-let previewRunning = false;
-let animationId = null;
-let particles = [];
-let mediaRecorder = null;
-let recordedChunks = [];
-let audioCtx = null;
-let audioDestination = null;
-let audioNodes = null;
+let previewRunning=false,animationId=null,particles=[],mediaRecorder=null,recordedChunks=[],audioCtx=null,audioDestination=null,audioNodes=null;
 
 /* ------------------------------
-Mood presets & visuals
+Mood presets & palettes
 ------------------------------ */
-const moodPresets = {
-  calm:{palette:['#9CCED7','#7FB8CF','#5EA8C5','#DFF6FB'],shape:'softBlobs',motion:'smooth'},
-  energetic:{palette:['#FFD07A','#FF9A76','#FF6B6B','#FFB1C1'],shape:'pulse',motion:'fast'},
-  hungry:{palette:['#FF7F50','#FFB347','#FFCC66'],shape:'warmOrbs',motion:'orbit'},
-  focus:{palette:['#1E88E5','#0D47A1','#A3CEF5'],shape:'figure8',motion:'linear'},
-  anxious:{palette:['#D9534F','#A72222','#FF6F61'],shape:'jitter',motion:'shaky'},
-  dreamy:{palette:['#B39DDB','#CE93D8','#B3E5FC','#E1BEE7'],shape:'softBlobs',motion:'floaty'}
+const moodPresets={
+  calm:{palette:['#0B3D91','#144E8B','#1E6091','#1C3D70','#0F1F40']},
+  energetic:{palette:['#FFD700','#FF4500','#FF6347','#FF8C00','#FFA500']},
+  hungry:{palette:['#FF4500','#FF6347','#FFA07A','#FFD700']},
+  focus:{palette:['#1E90FF','#00CED1','#20B2AA','#48D1CC']},
+  anxious:{palette:['#D9534F','#FF6347','#B22222','#A52A2A']},
+  dreamy:{palette:['#B39DDB','#CE93D8','#B3E5FC','#E1BEE7','#D1C4E9']}
 };
 
 /* ------------------------------
 Canvas & particles
 ------------------------------ */
-function resizeCanvasFor(resString){
-  const [w,h] = resString.split('x').map(n=>parseInt(n,10));
-  canvas.width=w; canvas.height=h;
-  width=w; height=h;
-}
-
-function initParticles(count=120,palette=['#fff']){
+function resizeCanvasFor(resString){const [w,h]=resString.split('x').map(n=>parseInt(n,10));canvas.width=w;canvas.height=h;width=w;height=h;}
+function initParticles(count=120,palette=['#fff'],pattern='softBlobs'){
   particles=[];
   for(let i=0;i<count;i++){
-    particles.push({
-      x:Math.random()*width,
-      y:Math.random()*height,
-      size:5+Math.random()*50,
-      color:palette[Math.floor(Math.random()*palette.length)],
-      seed:Math.random(),
-      angle:Math.random()*Math.PI*2
-    });
+    let size=Math.random()*15+3;
+    let angle=Math.random()*Math.PI*2;
+    let seed=Math.random();
+    let x=Math.random()*width,y=Math.random()*height;
+    let shape='circle';
+    switch(pattern){
+      case 'softBlobs': shape='circle'; break;
+      case 'spiral': shape='line'; break;
+      case 'figure8': shape='line'; break;
+      case 'pulse': shape='circle'; break;
+      case 'warmOrbs': shape='circle'; break;
+      case 'deepFlow': shape='blob'; break;
+      case 'waveRipples': shape='wave'; break;
+      case 'figure8Spiral': shape='line'; break;
+      case 'concentricLines': shape='line'; break;
+      case 'orbitOrbs': shape='circle'; break;
+      case 'warmGlowDots': shape='circle'; break;
+      case 'starBurst': shape='star'; break;
+      case 'flickerDots': shape='circle'; break;
+      case 'floatingTriangles': shape='triangle'; break;
+      case 'translucentWaves': shape='wave'; break;
+      case 'jitterPolygons': shape='polygon'; break;
+      case 'shakyLines': shape='line'; break;
+    }
+    particles.push({x,y,size,angle,seed,color:palette[Math.floor(Math.random()*palette.length)],shape});
   }
 }
 
 /* ------------------------------
-Drawing helpers
+Shape Drawing
 ------------------------------ */
-function shade(hex,percent){
-  const c=hex.replace('#','');
-  const num=parseInt(c,16);
-  let r=(num>>16), g=(num>>8)&0xff, b=num&0xff;
-  r=Math.min(255, Math.max(0, Math.round(r*(1+percent))));
-  g=Math.min(255, Math.max(0, Math.round(g*(1+percent))));
-  b=Math.min(255, Math.max(0, Math.round(b*(1+percent))));
-  return `rgb(${r},${g},${b})`;
+function drawParticle(p){
+  ctx.save();
+  ctx.translate(p.x,p.y);
+  ctx.rotate(p.angle);
+  ctx.globalAlpha=0.7+Math.sin(Date.now()/1000+p.seed)*0.3;
+  switch(p.shape){
+    case 'circle':
+    case 'blob':
+      ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(0,0,p.size,0,Math.PI*2); ctx.fill(); break;
+    case 'triangle':
+      ctx.beginPath();
+      ctx.moveTo(0,-p.size); ctx.lineTo(p.size, p.size); ctx.lineTo(-p.size,p.size); ctx.closePath();
+      ctx.fillStyle=p.color; ctx.fill(); break;
+    case 'polygon':
+      let sides=4+Math.floor(Math.random()*3); ctx.beginPath();
+      for(let i=0;i<sides;i++){ctx.lineTo(p.size*Math.cos(i*2*Math.PI/sides),p.size*Math.sin(i*2*Math.PI/sides));}
+      ctx.closePath(); ctx.fillStyle=p.color; ctx.fill(); break;
+    case 'line':
+      ctx.strokeStyle=p.color; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(-p.size,0); ctx.lineTo(p.size,0); ctx.stroke(); break;
+    case 'star':
+      ctx.beginPath();
+      for(let i=0;i<5;i++){
+        ctx.lineTo(p.size*Math.cos((i*2*Math.PI)/5),p.size*Math.sin((i*2*Math.PI)/5));
+        ctx.lineTo((p.size/2)*Math.cos((i*2*Math.PI+Math.PI)/5),(p.size/2)*Math.sin((i*2*Math.PI+Math.PI)/5));
+      }
+      ctx.closePath(); ctx.fillStyle=p.color; ctx.fill(); break;
+    case 'wave':
+      ctx.beginPath(); ctx.strokeStyle=p.color; ctx.lineWidth=2;
+      for(let i=0;i<p.size*2;i+=2){ctx.lineTo(i-Math.random()*p.size,Math.sin(Date.now()/500+p.seed*10+i/5)*p.size);}
+      ctx.stroke(); break;
+  }
+  ctx.restore();
 }
 
 /* ------------------------------
-Particle movement
+Particle Update
 ------------------------------ */
 function updateParticles(){
   const pattern=patternSelect.value;
   const complexity=complexityInput.value;
+  const density=densityInput.value;
+  while(particles.length<density){
+    initParticles(1,moodPresets[moodSelect.value].palette,pattern);
+  }
   particles.forEach(p=>{
     let speed=(Math.random()*0.5+0.2)*(complexity/5);
     switch(pattern){
-      case 'spiral':
-        p.angle+=0.01*speed;
-        p.x=width/2+Math.cos(p.angle+p.seed)*100;
-        p.y=height/2+Math.sin(p.angle+p.seed)*100;
-      break;
-      case 'figure8':
-        p.x=width/2+Math.sin(p.angle*2)*150*Math.sin(p.seed*Math.PI);
-        p.y=height/2+Math.sin(p.angle)*100;
-        p.angle+=0.02*speed;
-      break;
-      case 'pulse':
-        p.size=30+20*Math.sin(Date.now()/300+p.seed*Math.PI*2);
-      break;
-      case 'warmOrbs':
-        p.angle+=0.01*speed;
-        p.x=width/2+Math.cos(p.angle+p.seed)*100;
-        p.y=height/2+Math.sin(p.angle+p.seed)*100;
-      break;
-      case 'softBlobs':
-        p.x+=Math.sin(Date.now()/1000+p.seed*Math.PI*2)*0.5;
-        p.y+=Math.cos(Date.now()/1000+p.seed*Math.PI*2)*0.5;
-      break;
-      case 'jitter':
-        p.x+=Math.random()*2-1; p.y+=Math.random()*2-1;
-      break;
-    }
-  });
-}
-
-function drawParticles(){
-  ctx.clearRect(0,0,width,height);
-  particles.forEach(p=>{
-    ctx.beginPath();
-    ctx.fillStyle=shade(p.color,Math.sin(Date.now()/1000+p.seed)*0.5);
-    ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-    ctx.fill();
-  });
+      case 'spiral': case 'figure8': case 'figure8Spiral':
+        p.angle+=0.02*speed; p.x+=Math.cos(p.angle)*speed*2; p.y+=Math.sin(p.angle)*speed*2; break;
+      case 'pulse': case 'warmOrbs': case 'orbitOrbs': case 'warmGlowDots':
+        p.angle+=0.01*speed; p.size=5+Math.sin(Date.now()/300+p.seed*Math.PI*2)*10; break;
+      case 'deepFlow': case 'waveRipples': case 'translucentWaves':
+        p.x+=Math.sin(Date.now()/1000+p.seed*10)*0.5; p.y+=Math.cos(Date.now()/1000+p.seed*10)*0.5; break;
+      case 'starBurst': case 'flickerDots':
+        p.size=5+Math.random()*15; break;
+      case 'floatingTriangles':
+        p.y-=0.2; if(p.y<-50) p.y=height+50; break;
+      case 'jitterPolygons':
+        p.x+=Math.random()*3-1.5; p.y+=Math.random()*3-1.5; break;
+      case 'shakyLines':
+        p.angle+=Math.random()*0.1-0.05; break;
+  }});
 }
 
 /* ------------------------------
-Preview & animation
+Draw Loop
+------------------------------ */
+function drawParticles(){ctx.clearRect(0,0,width,height);particles.forEach(drawParticle);}
+
+/* ------------------------------
+Preview & recording
 ------------------------------ */
 function startPreview(){
   if(previewRunning) return;
   previewRunning=true;
-  startPreviewBtn.disabled=true;
-  stopPreviewBtn.disabled=false;
+  startPreviewBtn.disabled=true; stopPreviewBtn.disabled=false;
   resizeCanvasFor(resolutionInput.value);
-  const mood=moodSelect.value;
-  const palette=moodPresets[mood].palette;
-  initParticles(densityInput.value,palette);
+  initParticles(densityInput.value,moodPresets[moodSelect.value].palette,patternSelect.value);
   statusLabel.textContent='preview running • not recording';
-  function loop(){
-    if(!previewRunning) return;
-    updateParticles();
-    drawParticles();
-    animationId=requestAnimationFrame(loop);
-  }
-  loop();
-  if(enableAudio.checked && consentBox.checked) startAudio();
+  function loop(){if(!previewRunning) return; updateParticles(); drawParticles(); animationId=requestAnimationFrame(loop);}
+  loop(); if(enableAudio.checked && consentBox.checked) startAudio();
 }
 
 function stopPreview(){
   previewRunning=false;
   cancelAnimationFrame(animationId);
-  startPreviewBtn.disabled=false;
-  stopPreviewBtn.disabled=true;
+  startPreviewBtn.disabled=false; stopPreviewBtn.disabled=true;
   statusLabel.textContent='preview stopped • not recording';
   stopAudio();
 }
 
 /* ------------------------------
-MediaRecorder
+Recording
 ------------------------------ */
 function startRecording(){
   if(!previewRunning){alert('Start preview first'); return;}
   const fps=fpsInput.value;
   const stream=canvas.captureStream(fps);
-  if(enableAudio.checked && consentBox.checked){
-    if(audioDestination){
-      stream.addTrack(audioDestination.stream.getAudioTracks()[0]);
-    }
+  if(enableAudio.checked && consentBox.checked && audioDestination){
+    stream.addTrack(audioDestination.stream.getAudioTracks()[0]);
   }
   recordedChunks=[];
   mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9,opus'});
@@ -345,7 +361,7 @@ function stopRecording(){
 }
 
 /* ------------------------------
-Procedural audio
+Audio
 ------------------------------ */
 function startAudio(){
   if(audioCtx) return;
@@ -354,32 +370,20 @@ function startAudio(){
   audioNodes={};
   const mode=audioMode.value;
   if(mode==='none') return;
-  
-  if(mode==='infrasound' || mode==='alpha' || mode==='theta' || mode==='beta'){
-    let baseFreq=mode==='infrasound'?18:mode==='alpha'?10:mode==='theta'?6:16;
-    const oscillator=audioCtx.createOscillator();
-    oscillator.type='sine';
-    oscillator.frequency.value=baseFreq;
-    const gainNode=audioCtx.createGain();
-    gainNode.gain.value=0.02;
-    oscillator.connect(gainNode).connect(audioDestination);
-    oscillator.start();
-    audioNodes.oscillator=oscillator;
+  let baseFreq=10;
+  switch(mode){case'infrasound':baseFreq=18;break;case'alpha':baseFreq=10;break;case'theta':baseFreq=6;break;case'beta':baseFreq=16;break;}
+  if(['infrasound','alpha','theta','beta'].includes(mode)){
+    let osc=audioCtx.createOscillator();
+    osc.type='sine'; osc.frequency.value=baseFreq;
+    let gainNode=audioCtx.createGain(); gainNode.gain.value=0.02;
+    osc.connect(gainNode).connect(audioDestination);
+    osc.start(); audioNodes.oscillator=osc;
   }
-  if(mode==='appetite'){
-    const osc1=audioCtx.createOscillator();
-    osc1.type='sine'; osc1.frequency.value=220;
-    const gain1=audioCtx.createGain(); gain1.gain.value=0.01;
-    osc1.connect(gain1).connect(audioDestination);
-    osc1.start();
-  }
-  if(dummyVideo.paused){dummyVideo.play();}
+  if(mode==='appetite'){let osc1=audioCtx.createOscillator(); osc1.type='sine'; osc1.frequency.value=220;
+    let gain1=audioCtx.createGain(); gain1.gain.value=0.01; osc1.connect(gain1).connect(audioDestination); osc1.start();}
+  if(dummyVideo.paused) dummyVideo.play();
 }
-
-function stopAudio(){
-  if(audioCtx){audioCtx.close(); audioCtx=null; audioNodes=null;}
-  dummyVideo.pause();
-}
+function stopAudio(){if(audioCtx){audioCtx.close();audioCtx=null; audioNodes=null;} dummyVideo.pause();}
 
 /* ------------------------------
 Event listeners
@@ -389,7 +393,6 @@ stopPreviewBtn.addEventListener('click',stopPreview);
 recordBtn.addEventListener('click',startRecording);
 stopRecordBtn.addEventListener('click',stopRecording);
 resolutionInput.addEventListener('change',()=>resizeCanvasFor(resolutionInput.value));
-
 </script>
 </body>
 </html>
