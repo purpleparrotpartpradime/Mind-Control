@@ -1,642 +1,211 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Hypnotic Mood Video Generator — Ethical Mode</title>
+<meta charset="UTF-8">
+<title>Grand Radiance of Hypnocy</title>
 <style>
-  :root{
-    --bg:#070707;
-    --panel:#0f0f10;
-    --muted:#9aa0a6;
-    --accent:#6aa6ff;
-    --control:#121214;
-    --border:#1e1e1f;
-    --text:#e6e7e8;
-    --danger:#ff7b6b;
+  body {
+    margin: 0;
+    background-color: #111;
+    color: #ccc;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
   }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial;background:var(--bg);color:var(--text)}
-  .wrap{max-width:1100px;margin:18px auto;padding:18px;background:linear-gradient(180deg,var(--panel),#070707);border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,0.7);border:1px solid var(--border)}
-  h1{margin:0 0 8px 0;font-size:20px}
-  .controls{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:12px 0}
-  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-  select,input[type="number"],input[type="range"],button,a{padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--control);color:var(--text);font-size:13px}
-  button.primary{background:linear-gradient(180deg,#1b1b1d,#141415);border:1px solid #242426;cursor:pointer}
-  button.ghost{background:transparent;border:1px dashed #222;color:var(--muted)}
-  button:disabled{opacity:0.45;cursor:not-allowed}
-  canvas{display:block;width:100%;height:auto;max-width:1280px;margin-top:12px;border-radius:10px;background:#000;border:1px solid #0b0b0b}
-  .row{display:flex;gap:10px;align-items:center}
-  .small{font-size:12px;color:var(--muted)}
-  .progress{height:10px;background:#0b0b0b;border-radius:6px;overflow:hidden;width:320px;margin-left:8px;border:1px solid #111}
-  .progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#39f);width:0%}
-  #downloadLink{margin-left:8px;display:none;text-decoration:none;border:1px solid var(--border);padding:8px 10px;border-radius:8px}
-  footer{margin-top:14px;color:var(--muted);font-size:12px}
-  .danger{color:var(--danger);font-weight:600}
-  .consent{display:flex;gap:10px;align-items:center;margin-top:8px}
-  .muted-note{font-size:12px;color:var(--muted);max-width:900px}
-  @media (max-width:720px){.controls{flex-direction:column;align-items:flex-start}}
+  canvas {
+    background: #000;
+    border: 2px solid #444;
+    display: block;
+    margin-bottom: 20px;
+  }
+  select, button {
+    margin: 5px;
+    padding: 10px 20px;
+    background: #222;
+    color: #ccc;
+    border: 1px solid #555;
+    cursor: pointer;
+  }
+  select:focus, button:focus {
+    outline: none;
+    border-color: #888;
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Hypnotic Mood Video Generator — Ethical Mode</h1>
-
-  <div class="controls">
-    <div>
-      <label for="mood">Mood / Effect</label>
-      <select id="mood">
-        <option value="calm">Calm / Soothing</option>
-        <option value="energetic">Energetic / Uplifting</option>
-        <option value="hungry">Appetite / Food-invoking</option>
-        <option value="focus">Focus / Concentration</option>
-        <option value="anxious">Tension / Alerting</option>
-        <option value="dreamy">Dreamy / Trance</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="pattern">Entraining Pattern</label>
-      <select id="pattern">
-        <option value="softBlobs">Soft blobs (gentle)</option>
-        <option value="spiral">Slow Spiral (classic)</option>
-        <option value="figure8">Figure-eight / Flow</option>
-        <option value="pulse">Breathing Pulse (6 bpm)</option>
-        <option value="warmOrbs">Warm orbitals (appetite)</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="duration">Duration (sec) — max 3600</label>
-      <input id="duration" type="number" min="1" max="3600" value="20"/>
-    </div>
-
-    <div>
-      <label for="resolution">Resolution</label>
-      <select id="resolution">
-        <option value="1280x720">1280×720</option>
-        <option value="960x540" selected>960×540</option>
-        <option value="854x480">854×480</option>
-        <option value="640x360">640×360</option>
-      </select>
-    </div>
-
-    <div>
-      <label for="fps">FPS</label>
-      <input id="fps" type="number" min="12" max="60" value="30"/>
-    </div>
-
-    <div style="margin-left:auto;">
-      <div class="row">
-        <button id="startPreviewBtn" class="primary">Start Preview</button>
-        <button id="stopPreviewBtn" class="ghost" disabled>Stop Preview</button>
-
-        <button id="recordBtn" class="primary">Record</button>
-        <button id="stopRecordBtn" class="ghost" disabled>Stop Recording</button>
-
-        <a id="downloadLink">Download video</a>
-      </div>
-      <div class="row" style="margin-top:6px;">
-        <div class="small">Status:</div>
-        <div id="statusLabel" class="small" style="margin-left:8px;color:var(--muted)">preview stopped • not recording</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="controls">
-    <div class="row">
-      <label class="small">Shape density</label>
-      <input id="density" type="range" min="5" max="300" value="80"/>
-    </div>
-    <div class="row">
-      <label class="small">Motion complexity</label>
-      <input id="complexity" type="range" min="1" max="10" value="4"/>
-    </div>
-    <div class="row">
-      <label class="small">Saturation</label>
-      <input id="sat" type="range" min="0" max="200" value="100"/>
-    </div>
-
-    <div class="progress" title="Recording progress" style="margin-left:8px;">
-      <i id="progressFill"></i>
-    </div>
-  </div>
-
-  <div class="consent">
-    <input id="consentBox" type="checkbox"/>
-    <div>
-      <div style="font-size:13px;color:var(--muted);">I confirm I have informed consent from participants for visual/audio entrainment and they are aware of potential effects (dizziness, nausea, headache, photosensitivity).</div>
-      <div class="muted-note">To enable procedural audio or 'strong entrainment' patterns you must check this box. Recording with audio is disabled until consent is given.</div>
-    </div>
-  </div>
-
-  <div style="margin-top:10px;">
-    <label class="small">Enable procedural audio (binaural / ambient) — requires consent</label>
-    <input id="enableAudio" type="checkbox"/>
-    <label class="small" style="margin-left:12px">Audio Type</label>
-    <select id="audioMode">
-      <option value="none">None</option>
-      <option value="alpha">Alpha (8–12 Hz) — focus / relaxation</option>
-      <option value="theta">Theta (5–7 Hz) — deep relax</option>
-      <option value="appetite">Warm ambient (no beat) — appetite-priming (subtle)</option>
+  <canvas id="hypnoCanvas" width="800" height="600"></canvas>
+  <div>
+    <select id="moodSelect">
+      <option value="calm">Calm</option>
+      <option value="hunger">Hunger</option>
+      <option value="focus">Focus</option>
+      <option value="creativity">Creativity</option>
+      <option value="unease">Unease</option>
     </select>
+    <button id="startBtn">Start</button>
+    <button id="recordBtn" disabled>Start Recording</button>
   </div>
-
-  <canvas id="stage" width="960" height="540"></canvas>
-
-  <footer>
-    <strong>Safety & ethics</strong> — This tool produces strong visual entrainment and optional binaural-like audio. Do not use on people who did not give consent. Do not use with children, pregnant people, or people with photosensitive epilepsy. These techniques can influence attention and mood but do <em>not</em> guarantee behavior change. Use responsibly. <span class="danger">If anyone reports discomfort, stop immediately.</span>
-  </footer>
-</div>
-
+  <video id="audioCarrier" width="1" height="1" style="position:absolute;opacity:0;" playsinline></video>
 <script>
-/* ------------------------------
-   Core DOM & state
-   ------------------------------ */
-const canvas = document.getElementById('stage');
-const ctx = canvas.getContext('2d', { alpha: false });
-let width = canvas.width, height = canvas.height;
-
-const moodSelect = document.getElementById('mood');
-const patternSelect = document.getElementById('pattern');
-const startPreviewBtn = document.getElementById('startPreviewBtn');
-const stopPreviewBtn = document.getElementById('stopPreviewBtn');
+const canvas = document.getElementById('hypnoCanvas');
+const ctx = canvas.getContext('2d');
+const startBtn = document.getElementById('startBtn');
 const recordBtn = document.getElementById('recordBtn');
-const stopRecordBtn = document.getElementById('stopRecordBtn');
-const downloadLink = document.getElementById('downloadLink');
-const durationInput = document.getElementById('duration');
-const resolutionInput = document.getElementById('resolution');
-const fpsInput = document.getElementById('fps');
-const densityInput = document.getElementById('density');
-const complexityInput = document.getElementById('complexity');
-const satInput = document.getElementById('sat');
-const progressFill = document.getElementById('progressFill');
-const statusLabel = document.getElementById('statusLabel');
-const consentBox = document.getElementById('consentBox');
-const enableAudio = document.getElementById('enableAudio');
-const audioMode = document.getElementById('audioMode');
+const moodSelect = document.getElementById('moodSelect');
+const audioCarrier = document.getElementById('audioCarrier');
 
-let previewRunning = false;
-let animationId = null;
-let particles = [];
-let mediaRecorder = null;
-let recordedChunks = [];
-let audioCtx = null;
-let audioDestination = null;
-let binauralNodes = null;
+let audioCtx, gainNode, oscillatorL, oscillatorR;
+let recording = false;
+let mediaRecorder, recordedChunks = [];
+let animationId, startTime;
 
-/* ------------------------------
-   Mood & pattern presets
-   (Using research-informed, conservative mappings)
-   ------------------------------ */
-const moodPresets = {
-  calm: { palette: ['#9CCED7','#7FB8CF','#5EA8C5','#DFF6FB'], warmth: -0.2, contrast: 0.95, sat: 90, motionStyle: 'smooth' },
-  energetic: { palette: ['#FFD07A','#FF9A76','#FF6B6B','#FFB1C1'], warmth: 0.6, contrast:1.15, sat:140, motionStyle:'pulse' },
-  hungry: { palette: ['#FF7F50','#FFB347','#FFCC66'], warmth:0.8, contrast:1.05, sat:150, motionStyle:'orbital' },
-  focus: { palette: ['#1E88E5','#0D47A1','#A3CEF5'], warmth:-0.1, contrast:1.1, sat:100, motionStyle:'linear' },
-  anxious: { palette: ['#D9534F','#A72222','#FF6F61'], warmth:0.7, contrast:1.25, sat:180, motionStyle:'jitter' },
-  dreamy: { palette: ['#B39DDB','#CE93D8','#B3E5FC','#E1BEE7'], warmth:-0.3, contrast:0.9, sat:120, motionStyle:'floaty' }
+const moods = {
+  calm:   {colors:["#003366","#005599","#3399cc"], shape:"blobs", freq:8}, // alpha
+  hunger: {colors:["#ff0000","#ff6600","#ffaa00"], shape:"circles", freq:14}, // beta
+  focus:  {colors:["#00ffcc","#00aaff","#004477"], shape:"figure8", freq:12}, // low beta
+  creativity:{colors:["#9933ff","#ff33cc","#66ffff"], shape:"spiral", freq:6}, // theta
+  unease: {colors:["#330000","#660000","#990000"], shape:"jitter", freq:18} // near infrasound
 };
 
-const PATTERN = {
-  softBlobs: 'softBlobs', spiral: 'spiral', figure8: 'figure8', pulse: 'pulse', warmOrbs: 'warmOrbs'
-};
-
-/* ------------------------------
-   Canvas resizing / particles
-   ------------------------------ */
-function resizeCanvasFor(resString){
-  const [w,h] = resString.split('x').map(n=>parseInt(n,10));
-  canvas.width = w; canvas.height = h;
-  width = canvas.width; height = canvas.height;
-}
-
-function initParticles(count = 120, presetPalette = ['#fff']){
-  particles = [];
-  for(let i=0;i<count;i++){
-    particles.push({
-      x: Math.random()*width,
-      y: Math.random()*height,
-      baseX: Math.random()*width,
-      baseY: Math.random()*height,
-      size: (8 + Math.random()*120) * (width/960),
-      color: presetPalette[Math.floor(Math.random()*presetPalette.length)],
-      seed: Math.random(),
-      angle: Math.random()*Math.PI*2
-    });
-  }
-}
-
-/* ------------------------------
-   Drawing helpers for hypnotic shapes
-   ------------------------------ */
-function shade(hex, percent){
-  const c = hex.replace('#','');
-  const num = parseInt(c,16);
-  let r = (num>>16), g = (num>>8)&0xff, b = num&0xff;
-  r = Math.min(255, Math.max(0, Math.round(r*(1+percent))));
-  g = Math.min(255, Math.max(0, Math.round(g*(1+percent))));
-  b = Math.min(255, Math.max(0, Math.round(b*(1+percent))));
-  return `rgb(${r},${g},${b})`;
-}
-
-/* Spiral drawing (smooth, low-contrast) */
-function drawSpiral(cx, cy, t, palette){
-  ctx.save();
-  ctx.translate(cx,cy);
-  const turns = 4;
-  const maxR = Math.min(width,height)*0.45;
-  for(let i=0;i<turns*180;i+=4){
-    const a = i * Math.PI/180 + t*0.0006;
-    const r = (i/(turns*180))*maxR;
-    const x = Math.cos(a)*r, y = Math.sin(a)*r;
-    const col = palette[Math.floor((i/4) % palette.length)];
-    ctx.fillStyle = shade(col, -0.05 + Math.sin(i*0.01+t*0.0003)*0.03);
-    ctx.beginPath();
-    ctx.arc(x, y, Math.max(1, 6*(1 - r/maxR)), 0, Math.PI*2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-/* Figure-eight path generator */
-function figure8Path(t, idx, amplitude=1.0){
-  const speed = 0.0008;
-  const a = Math.sin(t*speed + idx)*amplitude;
-  const x = width/2 + Math.sin(t*speed*1.2 + idx*0.7)*width*0.22*a;
-  const y = height/2 + Math.sin(t*speed*0.6 + idx*1.1)*height*0.12*a*Math.cos(t*speed+idx);
-  return {x,y};
-}
-
-/* Breathing pulse: pulse at ~6 breaths per minute => 0.1 Hz => period 10s */
-function breathingScale(t){
-  const period = 10_000; // 10 seconds -> 6 bpm
-  return 1 + 0.08 * Math.sin((t % period) / period * Math.PI*2);
-}
-
-/* ------------------------------
-   Main frame renderer (selects pattern)
-   ------------------------------ */
-function renderFrame(t){
-  // get presets based on UI
-  const mood = moodSelect.value;
-  const preset = moodPresets[mood] || moodPresets.calm;
-  const palette = preset.palette;
-  const totalSat = Math.max(0, (preset.sat || 100) * (parseInt(satInput.value,10)/100));
-  // background gradient depending on warmth
-  const bg = ctx.createLinearGradient(0,0,width,height);
-  bg.addColorStop(0, shade(palette[0], -0.15));
-  bg.addColorStop(1, shade(palette[Math.min(2,palette.length-1)], -0.35));
-  ctx.fillStyle = bg;
-  ctx.fillRect(0,0,width,height);
-
-  // subtle animated grain
-  ctx.globalAlpha = 0.04;
-  ctx.fillStyle = '#fff';
-  for(let i=0;i<35;i++) ctx.fillRect(Math.random()*width, Math.random()*height, 1,1);
-  ctx.globalAlpha = 1;
-
-  // decide pattern and render
-  const pattern = patternSelect.value;
-  const complexity = parseFloat(complexityInput.value);
-
-  // pattern-specific overrides
-  if(pattern === PATTERN.spiral){
-    // central spiral that slowly expands/rotates
-    drawSpiral(width/2, height/2, t, palette);
-    // gentle orbiting orbs
-    particles.forEach((p, idx) => {
-      p.x = width/2 + Math.cos(t*0.0003 + idx + p.seed)* (Math.sin(idx + p.seed*5)*0.45 + 0.5)*width*0.25;
-      p.y = height/2 + Math.sin(t*0.00028 + idx*1.2 + p.seed) * height*0.18;
-      ctx.globalAlpha = 0.8 - (idx % 10)*0.01;
-      ctx.fillStyle = shade(p.color, Math.sin(t*0.0007 + idx)*0.04);
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, p.size*0.02), 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-  } else if(pattern === PATTERN.figure8){
-    // multiple shapes following figure eight
-    particles.forEach((p, idx) => {
-      const pos = figure8Path(t, idx, 1 + (idx%5)*0.06);
-      p.x = pos.x + Math.cos(idx + t*0.0002)*20*(complexity/4);
-      p.y = pos.y + Math.sin(idx*1.2 + t*0.00018)*12*(complexity/4);
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, p.size*0.02), 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-  } else if(pattern === PATTERN.pulse){
-    // breathing pulse – scale orbs in/out at ~6 bpm
-    const scale = breathingScale(t);
-    particles.forEach((p, idx) => {
-      const angle = idx/particles.length*Math.PI*2 + t*0.0003*(1+p.seed*3);
-      const r = Math.min(width, height)*0.35*(0.2 + (idx%6)/6);
-      p.x = width/2 + Math.cos(angle)*r*scale;
-      p.y = height/2 + Math.sin(angle)*r*scale;
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.65 - (idx%10)*0.02;
-      const col = palette[idx % palette.length];
-      ctx.fillStyle = shade(col, Math.sin(t*0.0009+idx)*0.04);
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, Math.max(2, p.size*0.03)*scale, 0, Math.PI*2);
-      ctx.fill();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1;
-    });
-  } else if(pattern === PATTERN.warmOrbs){
-    // appetite-prime: warm orbiting orbs, occasional 'steam' curves
-    particles.forEach((p, idx) => {
-      p.x = width/2 + Math.cos(t*0.0004 + idx*0.5 + p.seed) * (width*0.2 + (idx%5)*10);
-      p.y = height*0.45 + Math.sin(t*0.00035 + idx*0.6 + p.seed) * (height*0.06 + (idx%3)*6);
-      ctx.globalAlpha = 0.9 - (idx%8)*0.03;
-      const col = palette[idx % palette.length];
-      ctx.fillStyle = shade(col, -0.03 + Math.sin(t*0.0007 + idx)*0.02);
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, (p.size*0.03)), 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-
-    // add steam-like bezier arcs (subtle)
-    ctx.strokeStyle = shade(palette[0], -0.02);
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.25;
-    for(let i=0;i<6;i++){
-      const sx = width*0.15 + i*(width*0.12) + Math.sin(t*0.001 + i)*8;
-      ctx.beginPath();
-      ctx.moveTo(sx, height*0.75);
-      ctx.bezierCurveTo(sx+10, height*0.6 - Math.sin(t*0.001+i)*20, sx+40, height*0.5 - Math.cos(t*0.001+i)*20, sx+20, height*0.4 - i*2);
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-  } else {
-    // default: soft blobs
-    particles.forEach((p, idx) => {
-      p.x += Math.cos(t*0.0002 + idx)*0.3*(complexity/4);
-      p.y += Math.sin(t*0.00017 + idx)*0.3*(complexity/4);
-      ctx.globalAlpha = 0.85;
-      const g = ctx.createRadialGradient(p.x, p.y, p.size*0.02, p.x, p.y, p.size*0.6);
-      g.addColorStop(0, shade(p.color, 0.0));
-      g.addColorStop(1, shade(p.color, -0.35));
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, p.size*0.03), 0, Math.PI*2); ctx.fill();
-      ctx.globalAlpha = 1;
-    });
-  }
-
-  // vignette
-  ctx.save();
-  const vg = ctx.createRadialGradient(width/2,height/2,Math.max(width,height)*0.05,width/2,height/2,Math.max(width,height)*0.9);
-  vg.addColorStop(0,'rgba(255,255,255,0)');
-  vg.addColorStop(1,'rgba(0,0,0,0.25)');
-  ctx.fillStyle = vg;
-  ctx.fillRect(0,0,width,height);
-  ctx.restore();
-}
-
-/* ------------------------------
-   Preview / recorder controls
-   ------------------------------ */
-function startPreview(){
-  if(previewRunning) return;
-  const preset = moodPresets[moodSelect.value] || moodPresets.calm;
-  resizeCanvasFor(resolutionInput.value);
-  initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), preset.palette);
-  previewRunning = true;
-  startPreviewBtn.disabled = true; stopPreviewBtn.disabled = false;
-  statusLabel.textContent = 'preview running • not recording';
-
-  function loop(t){ 
-    // apply canvas filter (contrast/saturation)
-    const basePreset = moodPresets[moodSelect.value];
-    const sat = (basePreset && basePreset.sat ? basePreset.sat : 100) * (parseInt(satInput.value,10)/100);
-    ctx.filter = `contrast(${basePreset ? basePreset.contrast : 1}) saturate(${sat}%)`;
-    renderFrame(t);
-    if(previewRunning) animationId = requestAnimationFrame(loop); else animationId = null;
-  }
-  animationId = requestAnimationFrame(loop);
-}
-
-function stopPreview(){
-  if(!previewRunning) return;
-  previewRunning = false;
-  startPreviewBtn.disabled = false; stopPreviewBtn.disabled = true;
-  statusLabel.textContent = 'preview stopped • not recording';
-  if(animationId) cancelAnimationFrame(animationId);
-  animationId = null;
-}
-
-/* ------------------------------
-   Procedural audio (binaural + ambient)
-   - Created only if user consented (consentBox.checked)
-   - Uses AudioContext + MediaStreamDestination to merge audio into the recording stream
-   ------------------------------ */
-function createAudioNodes(mode){
-  if(!consentBox.checked) return null;
-  if(!window.AudioContext && !window.webkitAudioContext) return null;
+function initAudio(moodKey) {
+  if (audioCtx) audioCtx.close();
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  audioDestination = audioCtx.createMediaStreamDestination();
-  const masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.12; // safe low volume by default
-  masterGain.connect(audioDestination);
 
-  if(mode === 'appetite'){
-    // warm ambient drone (no binaural beat)
-    const osc = audioCtx.createOscillator();
-    const lpf = audioCtx.createBiquadFilter();
-    lpf.type = 'lowpass'; lpf.frequency.value = 800;
-    osc.type = 'sawtooth'; osc.frequency.value = 110; // low warm tone
-    const amp = audioCtx.createGain(); amp.gain.value = 0.04;
-    osc.connect(lpf); lpf.connect(amp); amp.connect(masterGain);
-    osc.start();
-    return { ctx: audioCtx, dest: audioDestination, nodes: [osc, lpf, amp, masterGain] };
-  }
+  const baseFreq = 200; // carrier tone
+  const beat = moods[moodKey].freq;
 
-  // binaural-style: two slightly different frequencies panned left/right
-  const base = (mode === 'alpha') ? 200 : 220; // carrier frequency
-  const beat = (mode === 'alpha') ? 10 : 6; // target beat (Hz) to evoke alpha/theta; difference will be beat
-  const leftFreq = base - beat/2;
-  const rightFreq = base + beat/2;
+  const merger = audioCtx.createChannelMerger(2);
+  gainNode = audioCtx.createGain();
+  gainNode.gain.value = 0.1;
 
-  // left
-  const oscL = audioCtx.createOscillator();
-  oscL.type = 'sine'; oscL.frequency.value = leftFreq;
-  const panL = audioCtx.createStereoPanner(); panL.pan.value = -0.9;
-  // right
-  const oscR = audioCtx.createOscillator();
-  oscR.type = 'sine'; oscR.frequency.value = rightFreq;
-  const panR = audioCtx.createStereoPanner(); panR.pan.value = 0.9;
+  oscillatorL = audioCtx.createOscillator();
+  oscillatorR = audioCtx.createOscillator();
+  oscillatorL.frequency.value = baseFreq - beat/2;
+  oscillatorR.frequency.value = baseFreq + beat/2;
 
-  // gentle low-frequency amplitude modulation to avoid harshness
-  const lfo = audioCtx.createOscillator();
-  lfo.type = 'sine'; lfo.frequency.value = 0.15; // slow tremolo
-  const lfoGain = audioCtx.createGain(); lfoGain.gain.value = 0.05;
+  oscillatorL.connect(merger, 0, 0);
+  oscillatorR.connect(merger, 0, 1);
+  merger.connect(gainNode).connect(audioCtx.destination);
 
-  const gainL = audioCtx.createGain(); gainL.gain.value = 0.08;
-  const gainR = audioCtx.createGain(); gainR.gain.value = 0.08;
-
-  lfo.connect(lfoGain);
-  lfoGain.connect(gainL.gain);
-  lfoGain.connect(gainR.gain);
-
-  // connect chain
-  oscL.connect(gainL); gainL.connect(panL); panL.connect(masterGain);
-  oscR.connect(gainR); gainR.connect(panR); panR.connect(masterGain);
-
-  // start nodes
-  oscL.start(); oscR.start(); lfo.start();
-
-  binauralNodes = { oscL, oscR, lfo, gainL, gainR, panL, panR, masterGain };
-
-  return { ctx: audioCtx, dest: audioDestination, nodes: [oscL, oscR, lfo, gainL, gainR, masterGain] };
+  oscillatorL.start();
+  oscillatorR.start();
 }
 
-function stopAudioNodes(nodesObj){
-  try{
-    if(!nodesObj) return;
-    const n = nodesObj.nodes || [];
-    n.forEach(node => {
-      try{ if(node && typeof node.stop === 'function') node.stop(); }catch(e){}
-      try{ if(node && typeof node.disconnect === 'function') node.disconnect(); }catch(e){}
-    });
-    if(audioCtx && typeof audioCtx.close === 'function') audioCtx.close();
-  }catch(e){}
-  audioCtx = null; audioDestination = null; binauralNodes = null;
+function drawPattern(moodKey, time) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const mood = moods[moodKey];
+  const t = time/1000;
+
+  switch(mood.shape) {
+    case "blobs":
+      for (let i=0; i<5; i++) {
+        ctx.fillStyle = mood.colors[i % mood.colors.length];
+        const x = canvas.width/2 + Math.sin(t+i)*150;
+        const y = canvas.height/2 + Math.cos(t*0.5+i)*100;
+        ctx.beginPath();
+        ctx.arc(x,y,80+20*Math.sin(t+i),0,Math.PI*2);
+        ctx.fill();
+      }
+      break;
+    case "circles":
+      for (let i=0; i<7; i++) {
+        ctx.strokeStyle = mood.colors[i % mood.colors.length];
+        ctx.lineWidth = 4;
+        const r = 50 + 40*i + 10*Math.sin(t*2+i);
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, r, 0, Math.PI*2);
+        ctx.stroke();
+      }
+      break;
+    case "figure8":
+      ctx.strokeStyle = mood.colors[0];
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      for (let a=0; a<Math.PI*2; a+=0.01) {
+        const x = canvas.width/2 + Math.sin(a*2+t)*200*Math.cos(a);
+        const y = canvas.height/2 + Math.sin(a)*100;
+        a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      break;
+    case "spiral":
+      ctx.strokeStyle = mood.colors[1];
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let a=0; a<Math.PI*10; a+=0.1) {
+        const r = 20 + a*5;
+        const x = canvas.width/2 + Math.cos(a+t*0.5)*r;
+        const y = canvas.height/2 + Math.sin(a+t*0.5)*r;
+        a===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      break;
+    case "jitter":
+      for (let i=0; i<100; i++) {
+        ctx.fillStyle = mood.colors[Math.floor(Math.random()*mood.colors.length)];
+        const x = Math.random()*canvas.width;
+        const y = Math.random()*canvas.height;
+        ctx.fillRect(x,y,5,5);
+      }
+      break;
+  }
 }
 
-/* ------------------------------
-   Recording: merges canvas.stream with optional audio stream (if consent+enabled)
-   Maximum duration enforced to 3600s (1 hour)
-   ------------------------------ */
-let recordStartTime = 0;
-let recordAnimationFrame = null;
-let recordProgressRAF = null;
-function startRecording(){
-  // enforce duration cap
-  let duration = Math.max(1, Math.floor(parseFloat(durationInput.value)));
-  if(duration > 3600){ duration = 3600; durationInput.value = 3600; alert('Duration capped at 3600 seconds (1 hour).'); }
+function startHypnosis() {
+  const mood = moodSelect.value;
+  initAudio(mood);
 
-  // If preview not running, start preview invisibly so canvas updates
-  let startedPreviewForRecording = false;
-  if(!previewRunning){ startPreview(); startedPreviewForRecording = true; }
+  const animate = (timestamp) => {
+    drawPattern(mood, timestamp);
+    animationId = requestAnimationFrame(animate);
+  };
+  animationId = requestAnimationFrame(animate);
+  recordBtn.disabled = false;
+}
 
-  // init particles
-  const preset = moodPresets[moodSelect.value] || moodPresets.calm;
-  initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), preset.palette);
+function startRecording() {
+  const stream = canvas.captureStream(30);
+  const audioStream = audioCtx.createMediaStreamDestination();
+  gainNode.connect(audioStream);
+  const combined = new MediaStream([...stream.getVideoTracks(), ...audioStream.stream.getAudioTracks()]);
 
-  // get canvas stream
-  const fps = Math.min(60, Math.max(12, parseInt(fpsInput.value)));
-  let canvasStream;
-  try{ canvasStream = canvas.captureStream(fps); } catch(e){ alert('captureStream not supported. Use Chrome/Edge desktop.'); return; }
-
-  // prepare audio if requested & consented
-  let audioStream = null;
-  if(enableAudio.checked && consentBox.checked && audioMode.value !== 'none'){
-    const audioNodes = createAudioNodes(audioMode.value);
-    if(audioNodes && audioNodes.dest){
-      audioStream = audioNodes.dest.stream;
-      // merge audio tracks into canvas stream
-      audioStream.getAudioTracks().forEach(track => canvasStream.addTrack(track));
-    }
-  }
-
+  mediaRecorder = new MediaRecorder(combined);
   recordedChunks = [];
-  progressFill.style.width = '0%';
-  downloadLink.style.display = 'none';
-  recordBtn.disabled = true; stopRecordBtn.disabled = false; startPreviewBtn.disabled = true; stopPreviewBtn.disabled = true;
-  statusLabel.textContent = 'recording…';
 
-  const options = (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) ? { mimeType: 'video/webm;codecs=vp9' } :
-                  (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? { mimeType: 'video/webm;codecs=vp8' } : { mimeType: 'video/webm' });
-
-  try{
-    mediaRecorder = new MediaRecorder(canvasStream, options);
-  }catch(e){
-    console.error('MediaRecorder creation failed', e);
-    alert('MediaRecorder failure: ' + (e && e.message) );
-    recordBtn.disabled = false; stopRecordBtn.disabled = true;
-    if(startedPreviewForRecording) stopPreview();
-    stopAudioNodes();
-    return;
-  }
-
-  mediaRecorder.ondataavailable = e => { if(e.data && e.data.size>0) recordedChunks.push(e.data); };
+  mediaRecorder.ondataavailable = e => {
+    if (e.data.size > 0) recordedChunks.push(e.data);
+  };
   mediaRecorder.onstop = () => {
-    const blob = new Blob(recordedChunks, { type: options.mimeType || 'video/webm' });
+    const blob = new Blob(recordedChunks, { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
-    downloadLink.href = url;
-    downloadLink.download = `hypno_${moodSelect.value}_${Date.now()}.webm`;
-    downloadLink.textContent = 'Download video (webm)';
-    downloadLink.style.display = 'inline-block';
-    recordBtn.disabled = false; stopRecordBtn.disabled = true; startPreviewBtn.disabled = false;
-    stopPreviewBtn.disabled = !previewRunning;
-    statusLabel.textContent = (previewRunning ? 'preview running • not recording' : 'preview stopped • not recording');
-    // stop audio nodes after finalize
-    // we keep audio until recording stops, then stop
-    stopAudioNodes();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hypno_video.webm';
+    a.click();
   };
 
-  mediaRecorder.start(1000);
-  recordStartTime = performance.now();
+  mediaRecorder.start();
+  recordBtn.textContent = "Stop Recording";
+  recording = true;
 
-  // progress loop
-  function progressRAF(now){
-    const elapsed = (now - recordStartTime)/1000;
-    const pct = Math.min(1, elapsed / duration);
-    progressFill.style.width = `${Math.round(pct*100)}%`;
-    if(elapsed >= duration){
-      // stop
-      stopRecording();
-    } else {
-      recordProgressRAF = requestAnimationFrame(progressRAF);
-    }
-  }
-  recordProgressRAF = requestAnimationFrame(progressRAF);
-
-  // safety backup timeout
-  setTimeout(()=>{ if(mediaRecorder && mediaRecorder.state==='recording') stopRecording(); }, duration*1000 + 1000);
+  setTimeout(() => {
+    if (recording) stopRecording();
+  }, 3600000); // 1 hour max
 }
 
-function stopRecording(){
-  if(recordProgressRAF) { cancelAnimationFrame(recordProgressRAF); recordProgressRAF = null; }
-  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  stopRecordBtn.disabled = true; recordBtn.disabled = false;
+function stopRecording() {
+  mediaRecorder.stop();
+  recording = false;
+  recordBtn.textContent = "Start Recording";
 }
 
-/* ------------------------------
-   UI wiring
-   ------------------------------ */
-startPreviewBtn.addEventListener('click', startPreview);
-stopPreviewBtn.addEventListener('click', stopPreview);
-
-recordBtn.addEventListener('click', ()=>{
-  // safety checks
-  if(enableAudio.checked && !consentBox.checked){
-    alert('Audio/strong entrainment requires explicit consent. Check the consent box to proceed.');
-    return;
-  }
-  startRecording();
+startBtn.addEventListener('click', startHypnosis);
+recordBtn.addEventListener('click', () => {
+  recording ? stopRecording() : startRecording();
 });
-stopRecordBtn.addEventListener('click', stopRecording);
-
-downloadLink.addEventListener('click', ()=>{
-  setTimeout(()=>{ if(downloadLink.href && downloadLink.href.startsWith('blob:')) URL.revokeObjectURL(downloadLink.href); }, 3000);
-});
-
-// keep preview in sync when user changes settings
-moodSelect.addEventListener('change', ()=>{ if(previewRunning) initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), moodPresets[moodSelect.value].palette); });
-patternSelect.addEventListener('change', ()=>{ if(previewRunning) initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), moodPresets[moodSelect.value].palette); });
-densityInput.addEventListener('input', ()=>{ if(previewRunning) initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), moodPresets[moodSelect.value].palette); });
-resolutionInput.addEventListener('change', ()=>{ resizeCanvasFor(resolutionInput.value); initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), moodPresets[moodSelect.value].palette); });
-
-// initial static frame
-(function init(){
-  resizeCanvasFor(resolutionInput.value);
-  initParticles(parseInt(densityInput.value,10), moodPresets[moodSelect.value].palette);
-  ctx.fillStyle = '#000'; ctx.fillRect(0,0,width,height);
-  renderFrame(performance.now());
-})();
-
-/* Compatibility note */
-if(!('MediaRecorder' in window)){
-  alert('MediaRecorder not supported in this browser. Recording may fail. Use Chrome or Edge on desktop for best behavior.');
-}
 </script>
 </body>
 </html>
