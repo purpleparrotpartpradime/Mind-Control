@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Algorithmic Mood Video Generator</title>
+<style>
+  body { font-family: system-ui, -apple-system, Roboto, "Segoe UI", Arial; margin: 18px; background:#111; color:#eee; }
+  h1 { margin:0 0 8px 0; font-size:20px; }
+  .controls { display:flex; gap:12px; flex-wrap:wrap; margin:10px 0 14px 0; align-items:center; }
+  label { font-size:13px; }
+  select, input[type="number"], input[type="range"], button { padding:8px; border-radius:6px; border:1px solid #333; background:#222; color:#eee; }
+  canvas { background: #000; border-radius:8px; display:block; margin-top:8px; max-width:100%; width:960px; height:540px; }
+  .row { display:flex; gap:10px; align-items:center; }
+  .small { font-size:12px; color:#bbb; }
+  #downloadLink { display:inline-block; margin-left:8px; }
+  .progress { height:10px; background:#222; border-radius:6px; overflow:hidden; width:300px; margin-left:8px; }
+  .progress > i { display:block; height:100%; background:linear-gradient(90deg,#6cf,#39f); width:0%; }
+  footer { margin-top:18px; color:#aaa; font-size:12px; max-width:960px; }
+  .danger { color:#f88; }
+</style>
+</head>
+<body>
+<h1>Algorithmic Mood Video Generator</h1>
+<div class="controls">
+  <div>
+    <label for="mood">Mood / Effect</label><br/>
+    <select id="mood">
+      <option value="calm">Calm / Soothing</option>
+      <option value="energetic">Energetic / Uplifting</option>
+      <option value="hungry">Appetite / Food-invoking</option>
+      <option value="focused">Focus / Concentration</option>
+      <option value="anxious">Tense / Alerting</option>
+      <option value="dreamy">Dreamy / Surreal</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="duration">Duration (sec)</label><br/>
+    <input id="duration" type="number" min="1" max="60" value="8" />
+  </div>
+
+  <div>
+    <label for="resolution">Resolution</label><br/>
+    <select id="resolution">
+      <option value="1280x720">1280×720</option>
+      <option value="960x540" selected>960×540</option>
+      <option value="854x480">854×480</option>
+      <option value="640x360">640×360</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="fps">FPS</label><br/>
+    <input id="fps" type="number" min="12" max="60" value="30" />
+  </div>
+
+  <div class="row" style="margin-left:auto;">
+    <button id="startBtn">Start & Record</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <a id="downloadLink" style="display:none;">Download</a>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="row">
+    <label class="small">Shape density</label>
+    <input id="density" type="range" min="5" max="200" value="60" />
+  </div>
+  <div class="row">
+    <label class="small">Motion complexity</label>
+    <input id="complexity" type="range" min="1" max="10" value="4" />
+  </div>
+  <div class="row">
+    <label class="small">Saturation (manual)</label>
+    <input id="sat" type="range" min="0" max="200" value="100" />
+  </div>
+
+  <div class="progress" title="Recording progress" style="margin-left:8px;">
+    <i id="progressFill"></i>
+  </div>
+</div>
+
+<canvas id="stage" width="960" height="540"></canvas>
+
+<footer>
+  <strong>How it works:</strong> This file renders generative visuals on a canvas (colors, movement, filters) and records the canvas to a WebM video using your browser's MediaRecorder API. The moods are mapped to palettes and animation parameters inspired by common color-psychology associations. These are probabilistic associations — results will vary by viewer and culture. <span class="danger">If your browser doesn't support MediaRecorder or webm recording, try Chrome/Edge and allow permission to capture the canvas stream.</span>
+</footer>
+
+<script>
+/* ------------------------------
+   Utility & setup
+   ------------------------------ */
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+let width = canvas.width, height = canvas.height;
+
+const moodSelect = document.getElementById('mood');
+const startBtn = document.getElementById('startBtn');
+const stopBtn  = document.getElementById('stopBtn');
+const downloadLink = document.getElementById('downloadLink');
+const durationInput = document.getElementById('duration');
+const resolutionInput = document.getElementById('resolution');
+const fpsInput = document.getElementById('fps');
+const densityInput = document.getElementById('density');
+const complexityInput = document.getElementById('complexity');
+const satInput = document.getElementById('sat');
+const progressFill = document.getElementById('progressFill');
+
+let animationId = null;
+let particles = [];
+let startTime = 0;
+
+/* ------------------------------
+   Mood mapping (palette + behavior)
+   These are heuristic mappings - adjust as you like.
+   ------------------------------ */
+const moodPresets = {
+  calm: {
+    palette: ['#A8D0E6','#84C1E6','#6CA0D9','#DFF3FF','#E8F7FF'],
+    shapes: ['circle','softBlob'],
+    speed: 0.4,
+    blur: 4,
+    contrast: 0.95,
+    saturation: 90,
+    motionStyle: 'smooth'
+  },
+  energetic: {
+    palette: ['#FFB86B','#FF6B6B','#FFD93D','#FF8FA3'],
+    shapes: ['triangle','sharp'],
+    speed: 1.4,
+    blur: 0,
+    contrast: 1.15,
+    saturation: 150,
+    motionStyle: 'pulse'
+  },
+  hungry: {
+    palette: ['#FF7F50','#FFB347','#FFCC66','#FFC1A6'],
+    shapes: ['circle','spiral'],
+    speed: 0.9,
+    blur: 0,
+    contrast: 1.05,
+    saturation: 140,
+    motionStyle: 'orbital'
+  },
+  focused: {
+    palette: ['#1E88E5','#0D47A1','#A3CEF5','#DFF5FF'],
+    shapes: ['lines','grid'],
+    speed: 0.6,
+    blur: 0,
+    contrast: 1.1,
+    saturation: 100,
+    motionStyle: 'linear'
+  },
+  anxious: {
+    palette: ['#F44336','#8B0000','#FF6F61','#D84315'],
+    shapes: ['jagged','strobe'],
+    speed: 1.8,
+    blur: 0,
+    contrast: 1.25,
+    saturation: 170,
+    motionStyle: 'jitter'
+  },
+  dreamy: {
+    palette: ['#B39DDB','#CE93D8','#F48FB1','#B3E5FC','#E1BEE7'],
+    shapes: ['softBlob','wave','star'],
+    speed: 0.5,
+    blur: 6,
+    contrast: 0.9,
+    saturation: 120,
+    motionStyle: 'floaty'
+  }
+};
+
+/* ------------------------------
+   Particle system (shapes + movement)
+   ------------------------------ */
+function resizeCanvasFor(resString) {
+  const [w,h] = resString.split('x').map(n=>parseInt(n,10));
+  canvas.width = w;
+  canvas.height = h;
+  width = canvas.width; height = canvas.height;
+}
+
+function initParticles(count = 80, preset) {
+  particles = [];
+  for (let i=0;i<count;i++) {
+    const shape = preset.shapes[Math.floor(Math.random()*preset.shapes.length)];
+    const size = (Math.random()*1.4 + 0.6) * (20 + Math.random()*80) * (width/960);
+    const hueColor = preset.palette[Math.floor(Math.random()*preset.palette.length)];
+    particles.push({
+      x: Math.random()*width,
+      y: Math.random()*height,
+      baseX: Math.random()*width,
+      baseY: Math.random()*height,
+      vx: (Math.random()-0.5)*0.5,
+      vy: (Math.random()-0.5)*0.5,
+      size,
+      shape,
+      color: hueColor,
+      wobble: Math.random()*Math.PI*2,
+      twist: Math.random()*10,
+      seed: Math.random()
+    });
+  }
+}
+
+/* helpers */
+function lerp(a,b,t){ return a + (b-a)*t; }
+function randRange(a,b){ return a + Math.random()*(b-a); }
+
+/* draw helpers for shapes */
+function drawParticle(p, t, preset, complexity) {
+  ctx.save();
+
+  // tint: take p.color and apply some hue shift depending on seed + t
+  // We'll use globalCompositeOperation to create soft interactions for some moods
+  ctx.translate(p.x, p.y);
+  const flicker = Math.sin(t*0.002*(1+p.seed*8) + p.wobble) * 0.5;
+  const scale = 1 + flicker * 0.08 * (preset.speed || 1);
+
+  ctx.scale(scale, scale);
+
+  // Choose style based on shape
+  if (p.shape === 'circle') {
+    const g = ctx.createRadialGradient(0,0,p.size*0.1, 0,0,p.size);
+    g.addColorStop(0, shade(p.color, 0.0));
+    g.addColorStop(1, shade(p.color, -0.35));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0,0,p.size*0.6,0,Math.PI*2);
+    ctx.fill();
+  } else if (p.shape === 'softBlob') {
+    // blob made with multiple overlapping circles
+    for (let i=0;i<5;i++) {
+      const r = p.size*(0.18 + i*0.12);
+      ctx.globalAlpha = 0.15 + i*0.12;
+      ctx.beginPath();
+      ctx.fillStyle = shade(p.color, -0.05*i + Math.sin(t*0.001 + p.seed*i)*0.02);
+      ctx.arc(Math.cos(i+p.seed)*r*0.2, Math.sin(i+p.seed)*r*0.15, r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  } else if (p.shape === 'triangle' || p.shape === 'sharp') {
+    ctx.beginPath();
+    ctx.moveTo(0, -p.size*0.6);
+    ctx.lineTo(p.size*0.6, p.size*0.6);
+    ctx.lineTo(-p.size*0.6, p.size*0.6);
+    ctx.closePath();
+    ctx.fillStyle = p.color;
+    ctx.fill();
+    // slight stroke
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = shade(p.color, -0.3);
+    ctx.stroke();
+  } else if (p.shape === 'spiral') {
+    ctx.beginPath();
+    const loops = 4 + Math.floor(p.seed*4);
+    for (let i=0;i<60;i++){
+      const r = (i/60)*p.size*0.9;
+      const a = i/60 * Math.PI*2*loops + t*0.0005*(1+p.seed*2);
+      const px = Math.cos(a)*r*0.6, py = Math.sin(a)*r*0.6;
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = Math.max(1, p.size*0.04);
+    ctx.stroke();
+  } else if (p.shape === 'lines' || p.shape === 'grid') {
+    ctx.rotate(Math.sin(t*0.0005 + p.seed)*0.3);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.size*0.8, -p.size*0.08, p.size*1.6, p.size*0.16);
+  } else if (p.shape === 'jagged' || p.shape === 'strobe') {
+    ctx.beginPath();
+    for (let i=0;i<6;i++){
+      const a = i/6*Math.PI*2;
+      const r = p.size*(0.4 + (Math.random()*0.6));
+      const px = Math.cos(a)*r, py=Math.sin(a)*r;
+      if (i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  } else if (p.shape === 'wave') {
+    ctx.beginPath();
+    ctx.moveTo(-p.size,0);
+    for (let i=0;i<40;i++){
+      const x = lerp(-p.size,p.size,i/39);
+      const y = Math.sin((i/39)*Math.PI*2 + t*0.002 + p.seed*4)*p.size*0.25;
+      ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = Math.max(2, p.size*0.04);
+    ctx.stroke();
+  } else if (p.shape === 'star') {
+    ctx.beginPath();
+    for (let i=0;i<5;i++){
+      ctx.lineTo(Math.cos((18+i*72)*Math.PI/180)*p.size*0.6, -Math.sin((18+i*72)*Math.PI/180)*p.size*0.6);
+      ctx.lineTo(Math.cos((54+i*72)*Math.PI/180)*p.size*0.25, -Math.sin((54+i*72)*Math.PI/180)*p.size*0.25);
+    }
+    ctx.closePath();
+    ctx.fillStyle = p.color;
+    ctx.fill();
+  } else {
+    // fallback circle
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(0,0,p.size*0.5,0,Math.PI*2); ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/* small helper to shift color brightness/hsl-ish using rgba canvas overlay trick */
+function shade(hex, percent) {
+  // convert hex to rgb
+  const c = hex.replace('#','');
+  const num = parseInt(c,16);
+  let r = (num >> 16), g = (num >> 8) & 0xFF, b = num & 0xFF;
+  r = Math.min(255, Math.max(0, Math.round(r*(1+percent))));
+  g = Math.min(255, Math.max(0, Math.round(g*(1+percent))));
+  b = Math.min(255, Math.max(0, Math.round(b*(1+percent))));
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ------------------------------
+   Animation loop & behavior mapping
+   ------------------------------ */
+
+function animateFrame(t, preset, complexityFactor) {
+  // t is DOMHighResTimeStamp in ms
+  // Apply tone mapping: background gradient / vignette based on palette
+  const bg = ctx.createLinearGradient(0,0,width,height);
+  const p0 = preset.palette[0] || '#000';
+  const p1 = preset.palette[Math.min(2,preset.palette.length-1)] || '#222';
+  bg.addColorStop(0, shade(p0, -0.18));
+  bg.addColorStop(1, shade(p1, -0.32));
+  ctx.fillStyle = bg;
+  ctx.fillRect(0,0,width,height);
+
+  // subtle noise or grain (cheap)
+  ctx.globalAlpha = 0.04;
+  ctx.fillStyle = '#fff';
+  for (let i=0;i<25;i++){
+    ctx.fillRect(Math.random()*width, Math.random()*height, 1,1);
+  }
+  ctx.globalAlpha = 1;
+
+  // Move particles with different motion styles
+  for (let i=0;i<particles.length;i++){
+    const p = particles[i];
+
+    // motion pattern
+    if (preset.motionStyle === 'smooth') {
+      p.x = p.baseX + Math.cos(t*0.0002*(1+p.seed*2) + p.seed*10) * 60 * preset.speed;
+      p.y = p.baseY + Math.sin(t*0.00015*(1+p.seed*2) + p.seed*20) * 40 * preset.speed;
+    } else if (preset.motionStyle === 'pulse') {
+      p.x += Math.sin(t*0.002 + p.seed*10 + i) * 0.6 * preset.speed;
+      p.y += Math.cos(t*0.0021 + p.seed*12 + i) * 0.6 * preset.speed;
+    } else if (preset.motionStyle === 'orbital') {
+      p.x = width/2 + Math.cos((t*0.0005 + p.seed*10) * (1 + p.seed)) * (p.seed*width*0.4);
+      p.y = height/2 + Math.sin((t*0.0006 + p.seed*12)) * (p.seed*height*0.3);
+    } else if (preset.motionStyle === 'linear') {
+      p.x += Math.cos(p.seed*10 + i) * 0.2 * preset.speed * complexityFactor;
+      p.y += (Math.sin(p.seed*12 + i) * 0.2 * preset.speed) * complexityFactor;
+    } else if (preset.motionStyle === 'jitter') {
+      p.x += (Math.random()-0.5) * 6 * preset.speed;
+      p.y += (Math.random()-0.5) * 6 * preset.speed;
+      // clamp
+      if (p.x < -100) p.x = width + 100;
+      if (p.x > width + 100) p.x = -100;
+    } else if (preset.motionStyle === 'floaty') {
+      p.x += Math.sin(t*0.00015 + p.seed*4) * 0.5 * preset.speed;
+      p.y += Math.cos(t*0.00012 + p.seed*5) * 0.5 * preset.speed;
+    } else {
+      // default small wandering
+      p.x += Math.sin(t*0.0002 + p.seed*10) * 0.4 * preset.speed;
+      p.y += Math.cos(t*0.00017 + p.seed*11) * 0.4 * preset.speed;
+    }
+
+    // wrap
+    if (p.x < -200) p.x = width + 200;
+    if (p.x > width + 200) p.x = -200;
+    if (p.y < -200) p.y = height + 200;
+    if (p.y > height + 200) p.y = -200;
+
+    // draw with current global filters applied in outer loop
+    drawParticle(p, t, preset, complexityFactor);
+  } // end particles
+
+  // overlay effects: soft vignette or contrast/hard overlay
+  ctx.save();
+  // vignette
+  const vg = ctx.createRadialGradient(width/2, height/2, Math.max(width,height)*0.1, width/2, height/2, Math.max(width,height)*0.9);
+  vg.addColorStop(0, 'rgba(255,255,255,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.25)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0,0,width,height);
+  ctx.restore();
+}
+
+/* ------------------------------
+   Recording & controls
+   ------------------------------ */
+
+let mediaRecorder = null;
+let recordedChunks = [];
+
+async function startRecording() {
+  // prepare parameters
+  const preset = moodPresets[moodSelect.value] || moodPresets.calm;
+  const duration = Math.max(1, parseFloat(durationInput.value));
+  const fps = Math.min(60, Math.max(12, parseInt(fpsInput.value)));
+  const density = parseInt(densityInput.value,10);
+  const complexityFactor = Math.max(1, parseFloat(complexityInput.value));
+  const saturationManual = parseInt(satInput.value,10);
+
+  // set resolution
+  resizeCanvasFor(resolutionInput.value);
+  // initialize particles based on density/resolution
+  initParticles(Math.round(density * (width/960)), preset);
+
+  // configure canvas filters using CSS-like ctx.filter
+  // We'll update ctx.filter in animation loop based on preset + manual adjustments
+  const baseSaturation = preset.saturation || 100;
+  const totalSaturation = Math.max(0, Math.round(baseSaturation * (saturationManual/100)));
+
+  // Setup MediaRecorder from canvas captureStream
+  let stream;
+  try {
+    stream = canvas.captureStream(fps);
+  } catch (err) {
+    alert('captureStream not supported in this browser. Try Chrome or Edge on desktop.');
+    return;
+  }
+
+  // optional audio: simple ambient sine at low volume (for mood influence) -> we'll leave muted by default
+  // If you want to enable audio, create an AudioContext + oscillator + MediaStreamDestination and add to stream.
+  // (left out by default to keep video-only.)
+
+  recordedChunks = [];
+  progressFill.style.width = '0%';
+  downloadLink.style.display = 'none';
+  stopBtn.disabled = false;
+  startBtn.disabled = true;
+
+  // Choose mime type friendly to modern browsers
+  const options = (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) ?
+    { mimeType: 'video/webm;codecs=vp9' } :
+    (MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? { mimeType: 'video/webm;codecs=vp8' } : { mimeType: 'video/webm' });
+
+  try {
+    mediaRecorder = new MediaRecorder(stream, options);
+  } catch (e) {
+    console.error('MediaRecorder error', e);
+    alert('MediaRecorder cannot be created with options: ' + JSON.stringify(options));
+    return;
+  }
+
+  mediaRecorder.ondataavailable = function(e) {
+    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+  };
+  mediaRecorder.onstop = function() {
+    const blob = new Blob(recordedChunks, { type: options.mimeType || 'video/webm' });
+    const url = URL.createObjectURL(blob);
+    downloadLink.href = url;
+    downloadLink.download = `mood_${moodSelect.value}_${Date.now()}.webm`;
+    downloadLink.textContent = 'Download video (webm)';
+    downloadLink.style.display = 'inline-block';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+  };
+
+  mediaRecorder.start(1000); // collect in 1s chunks
+
+  // Start animation loop and automatically stop after duration
+  startTime = performance.now();
+  const stopAfter = duration * 1000;
+  const startTimeLocal = startTime;
+
+  function frame(now) {
+    // apply dynamic ctx filter for blur/contrast/saturation
+    ctx.filter = `blur(${preset.blur}px) contrast(${preset.contrast}) saturate(${totalSaturation}%)`;
+    // small subtle sinus modulation for some moods for life
+    const modulation = 1 + Math.sin(now*0.0005)*0.02;
+    ctx.globalAlpha = modulation;
+
+    animateFrame(now, preset, complexityFactor);
+
+    // update progress
+    const elapsed = now - startTimeLocal;
+    const pct = Math.min(1, elapsed / stopAfter);
+    progressFill.style.width = `${Math.round(pct*100)}%`;
+
+    if (elapsed < stopAfter) {
+      animationId = requestAnimationFrame(frame);
+    } else {
+      // stop
+      animationId = null;
+      stopRecording(); // will stop mediaRecorder on UI
+    }
+  }
+  animationId = requestAnimationFrame(frame);
+}
+
+function stopRecording() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  stopBtn.disabled = true;
+  startBtn.disabled = false;
+}
+
+/* wire buttons */
+startBtn.addEventListener('click', () => {
+  downloadLink.style.display = 'none';
+  startRecording();
+});
+stopBtn.addEventListener('click', () => {
+  // manual stop
+  stopRecording();
+});
+
+/* small utility: allow clicking the download link to revoke object afterwards */
+downloadLink.addEventListener('click', () => {
+  setTimeout(() => {
+    if (downloadLink.href && downloadLink.href.startsWith('blob:')) {
+      // revoke later to free memory
+      URL.revokeObjectURL(downloadLink.href);
+    }
+  }, 3000);
+});
+
+/* Initialize defaults */
+(function init() {
+  // set canvas initial size from selector
+  resizeCanvasFor(resolutionInput.value);
+  initParticles(parseInt(densityInput.value,10), moodPresets[moodSelect.value]);
+  // Draw one frame to show preview
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,width,height);
+  // small preview render
+  animateFrame(performance.now(), moodPresets[moodSelect.value], parseFloat(complexityInput.value));
+})();
+
+/* Responsive small update: when mood changes, re-init particles with new palette */
+moodSelect.addEventListener('change', () => {
+  const preset = moodPresets[moodSelect.value];
+  initParticles(parseInt(densityInput.value,10), preset);
+  // update preview draw
+  animateFrame(performance.now(), preset, parseFloat(complexityInput.value));
+});
+densityInput.addEventListener('input', () => {
+  initParticles(Math.round(parseInt(densityInput.value,10) * (width/960)), moodPresets[moodSelect.value]);
+});
+resolutionInput.addEventListener('change', () => {
+  resizeCanvasFor(resolutionInput.value);
+  initParticles(Math.round(parseInt(densityInput.value,10) * (canvas.width/960)), moodPresets[moodSelect.value]);
+});
+
+/* Safety/compatibility note: */
+if (!('MediaRecorder' in window)) {
+  alert('Warning: Your browser appears not to support MediaRecorder. Recording will fail. Use Chrome or Edge on desktop for best compatibility.');
+}
+
+</script>
+</body>
+</html>
