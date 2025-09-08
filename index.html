@@ -129,11 +129,11 @@ footer{margin-top:14px;color:var(--muted);font-size:12px}
   <label class="small" style="margin-left:12px">Audio Mode</label>
   <select id="audioMode">
     <option value="none">None</option>
-    <option value="alpha">Alpha (8–12 Hz)</option>
-    <option value="theta">Theta (5–7 Hz)</option>
-    <option value="beta">Beta (13–20 Hz)</option>
-    <option value="infrasound">Infrasound-like (17–19 Hz)</option>
-    <option value="appetite">Appetite ambient</option>
+    <option value="alpha">Alpha (8–12 Hz, calming, relaxed focus)</option>
+    <option value="theta">Theta (4–8 Hz, deep relaxation, creativity)</option>
+    <option value="beta">Beta (12–30 Hz, alert, problem-solving, slightly stress-inducing)</option>
+    <option value="infrasound">Infrasound-like (17–19 Hz, unsettling, anxiety, dizziness)</option>
+    <option value="appetite">Appetite ambient (warm bass pulses, subtly increases appetite)</option>
   </select>
 </div>
 
@@ -198,7 +198,8 @@ Canvas & particles
 ------------------------------ */
 function resizeCanvasFor(resString){
   const [w,h] = resString.split('x').map(n=>parseInt(n,10));
-  canvas.width=w; canvas.height=h; width=w; height=h;
+  canvas.width=w; canvas.height=h;
+  width=w; height=h;
 }
 
 function initParticles(count=120,palette=['#fff']){
@@ -228,12 +229,12 @@ function shade(hex,percent){
   return `rgb(${r},${g},${b})`;
 }
 
-/* Spiral / figure-8 / pulse movement */
+/* ------------------------------
+Particle movement
+------------------------------ */
 function updateParticles(){
   const pattern=patternSelect.value;
-  const density=densityInput.value;
   const complexity=complexityInput.value;
-  const satFactor=satInput.value/100;
   particles.forEach(p=>{
     let speed=(Math.random()*0.5+0.2)*(complexity/5);
     switch(pattern){
@@ -282,12 +283,15 @@ Preview & animation
 function startPreview(){
   if(previewRunning) return;
   previewRunning=true;
+  startPreviewBtn.disabled=true;
+  stopPreviewBtn.disabled=false;
   resizeCanvasFor(resolutionInput.value);
   const mood=moodSelect.value;
   const palette=moodPresets[mood].palette;
   initParticles(densityInput.value,palette);
   statusLabel.textContent='preview running • not recording';
   function loop(){
+    if(!previewRunning) return;
     updateParticles();
     drawParticles();
     animationId=requestAnimationFrame(loop);
@@ -299,6 +303,8 @@ function startPreview(){
 function stopPreview(){
   previewRunning=false;
   cancelAnimationFrame(animationId);
+  startPreviewBtn.disabled=false;
+  stopPreviewBtn.disabled=true;
   statusLabel.textContent='preview stopped • not recording';
   stopAudio();
 }
@@ -318,7 +324,12 @@ function startRecording(){
   recordedChunks=[];
   mediaRecorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9,opus'});
   mediaRecorder.ondataavailable=e=>{if(e.data.size>0) recordedChunks.push(e.data)};
-  mediaRecorder.onstop=()=>{const blob=new Blob(recordedChunks,{type:'video/webm'});downloadLink.href=URL.createObjectURL(blob);downloadLink.style.display='inline-block';downloadLink.download='hypno_video.webm';};
+  mediaRecorder.onstop=()=>{
+    const blob=new Blob(recordedChunks,{type:'video/webm'});
+    downloadLink.href=URL.createObjectURL(blob);
+    downloadLink.style.display='inline-block';
+    downloadLink.download='hypno_video.webm';
+  };
   mediaRecorder.start();
   stopRecordBtn.disabled=false; recordBtn.disabled=true;
   statusLabel.textContent='preview running • recording';
@@ -356,14 +367,12 @@ function startAudio(){
     audioNodes.oscillator=oscillator;
   }
   if(mode==='appetite'){
-    // low-volume high/low pulses to induce appetite associations
     const osc1=audioCtx.createOscillator();
     osc1.type='sine'; osc1.frequency.value=220;
     const gain1=audioCtx.createGain(); gain1.gain.value=0.01;
     osc1.connect(gain1).connect(audioDestination);
     osc1.start();
   }
-  // Safari dummy video hack
   if(dummyVideo.paused){dummyVideo.play();}
 }
 
